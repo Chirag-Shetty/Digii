@@ -62,3 +62,4 @@ This project solves that friction:
 ├── seed.py             # Idempotent demo dataset
 └── .gitignore
 ```
+

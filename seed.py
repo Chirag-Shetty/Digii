@@ -136,3 +136,4 @@ if __name__ == "__main__":
     init_db()
     with SessionLocal() as session:
         seed_data(session)
+

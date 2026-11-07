@@ -37,3 +37,4 @@ def serve_index():
     if index_file.exists():
         return FileResponse(index_file)
     return {"message": "Campus Transport Experience API"}
+

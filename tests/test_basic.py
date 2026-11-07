@@ -58,3 +58,4 @@ def test_app_health_and_root():
     root_resp = client.get("/")
     assert root_resp.status_code == 200
     assert "Campus Transport Experience" in root_resp.text
+

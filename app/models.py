@@ -152,3 +152,4 @@ class Notification(Base):
     )
 
     trip: Mapped["Trip"] = relationship("Trip", back_populates="notifications")
+

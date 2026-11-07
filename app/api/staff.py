@@ -118,3 +118,4 @@ def get_summary(db: Session = Depends(get_db)):
     Returns metric summary: active incident count and total notifications sent (calls avoided).
     """
     return incident_service.get_staff_summary(db)
+

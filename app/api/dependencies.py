@@ -15,3 +15,4 @@ def get_staff_key(x_staff_key: Optional[str] = Header(None, alias="X-Staff-Key")
             detail="Unauthorized: Missing or invalid X-Staff-Key header. (Stand-in for real auth)",
         )
     return x_staff_key
+

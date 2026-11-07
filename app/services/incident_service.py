@@ -3,6 +3,7 @@ from typing import Optional, Sequence
 from sqlalchemy.orm import Session
 
 from app.models import Incident, IncidentType, Trip, TripStatus
+from app.services.notification_service import notify_affected
 
 
 def report_incident(
@@ -79,6 +80,10 @@ def report_incident(
     db.commit()
     db.refresh(incident)
     db.refresh(trip)
+
+    # Notify all affected subscribers for this trip
+    notify_affected(db, incident, now=now)
+
     return incident
 
 

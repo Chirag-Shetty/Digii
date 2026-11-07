@@ -233,3 +233,4 @@ curl -X GET http://localhost:8000/api/staff/trips/1/history -H "X-Staff-Key: dev
 4. **Multichannel Delivery**: Optional SMS / WhatsApp / Campus App push notification adapters for high-priority alerts.
 5. **Digest Modes & Rate Limiting**: Consolidate frequent delay updates (e.g. 5m $\rightarrow$ 10m $\rightarrow$ 15m) into rate-limited digests to prevent notification fatigue.
 6. **Operational Analytics Dashboard**: Historical charts showing mean time to resolution (MTTR), route disruption hotspots, and metrics on estimated dispatch calls avoided over time.
+

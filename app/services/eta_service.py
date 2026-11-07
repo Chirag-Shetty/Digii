@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
+from sqlalchemy.orm import Session
 
 from app.config import STALE_THRESHOLD_MINUTES
-from app.models import Incident, IncidentType, RouteStop, Trip, TripStatus
+from app.models import Incident, IncidentType, RouteStop, Stop, Trip, TripStatus
 
 
 def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -102,3 +103,65 @@ def stop_status(
             "last_updated": created_at_utc,
             "is_stale": is_stale,
         }
+
+
+def get_stop_arrivals(
+    db: Session,
+    stop_id: int,
+    now: Optional[datetime] = None,
+    window_hours: int = 3,
+) -> Optional[list[dict[str, Any]]]:
+    """
+    Finds upcoming trips (next `window_hours` hours) serving the given stop,
+    computes real-time ETAs and disruption status for each.
+    Returns None if stop does not exist.
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    now_utc = _ensure_utc(now)
+    stop = db.query(Stop).filter(Stop.id == stop_id).first()
+    if not stop:
+        return None
+
+    route_stops = (
+        db.query(RouteStop)
+        .filter(RouteStop.stop_id == stop_id)
+        .all()
+    )
+    if not route_stops:
+        return []
+
+    arrivals = []
+    window_end = now_utc + timedelta(hours=window_hours)
+
+    for rs in route_stops:
+        trips = (
+            db.query(Trip)
+            .filter(Trip.route_id == rs.route_id)
+            .all()
+        )
+        for trip in trips:
+            status = stop_status(trip, rs, now=now)
+            sched = _ensure_utc(status["scheduled_time"])
+            est = _ensure_utc(status["estimated_time"]) if status["estimated_time"] else sched
+
+            # Include if departure/arrival falls within upcoming window
+            if sched and (now_utc - timedelta(minutes=15) <= est <= window_end or now_utc - timedelta(minutes=15) <= sched <= window_end):
+                arrivals.append({
+                    "trip_id": trip.id,
+                    "route_id": trip.route_id,
+                    "route_name": trip.route.name if trip.route else f"Route {trip.route_id}",
+                    "stop_id": stop.id,
+                    "stop_name": stop.name,
+                    "scheduled_time": status["scheduled_time"],
+                    "estimated_time": status["estimated_time"],
+                    "delay_minutes": status["delay_minutes"],
+                    "status": status["status"],
+                    "message": status["message"],
+                    "last_updated": status["last_updated"],
+                    "is_stale": status["is_stale"],
+                })
+
+    arrivals.sort(key=lambda a: a["estimated_time"] or a["scheduled_time"])
+    return arrivals

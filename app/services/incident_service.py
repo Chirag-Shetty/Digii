@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Any
 from sqlalchemy.orm import Session
 
-from app.models import Incident, IncidentType, Trip, TripStatus
+from app.models import Incident, IncidentType, Notification, Trip, TripStatus
 from app.services.notification_service import notify_affected
 
 
@@ -97,4 +97,21 @@ def history(db: Session, trip_id: int) -> Sequence[Incident]:
         .order_by(Incident.created_at.desc(), Incident.id.desc())
         .all()
     )
+
+
+def get_staff_summary(db: Session) -> dict[str, Any]:
+    """
+    Returns counts of active incidents and notifications sent (calls avoided).
+    """
+    active_incidents = (
+        db.query(Incident)
+        .filter(Incident.is_active.is_(True))
+        .count()
+    )
+    total_notifications = db.query(Notification).count()
+    return {
+        "active_incidents": active_incidents,
+        "total_notifications_sent": total_notifications,
+        "estimated_calls_avoided": total_notifications,
+    }
 

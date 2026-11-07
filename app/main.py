@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.rider import router as rider_router
+from app.api.staff import router as staff_router
 from app.db import init_db
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -21,6 +23,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(rider_router)
+app.include_router(staff_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

@@ -185,3 +185,15 @@ def get_user_subscriptions(db: Session, user_ref: str) -> Sequence[Subscription]
         .filter(Subscription.user_ref == user_ref)
         .all()
     )
+
+
+def delete_subscription(db: Session, subscription_id: int) -> bool:
+    """
+    Deletes a subscription by ID. Returns True if deleted, False if not found.
+    """
+    sub = db.query(Subscription).filter(Subscription.id == subscription_id).first()
+    if not sub:
+        return False
+    db.delete(sub)
+    db.commit()
+    return True

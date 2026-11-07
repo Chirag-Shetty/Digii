@@ -43,3 +43,11 @@ def serve_index():
         return FileResponse(index_file)
     return {"message": "Campus Transport Experience API"}
 
+
+@app.get("/staff", tags=["system"])
+def serve_staff():
+    staff_file = STATIC_DIR / "staff.html"
+    if staff_file.exists():
+        return FileResponse(staff_file)
+    return {"message": "Campus Transport Staff Portal"}
+

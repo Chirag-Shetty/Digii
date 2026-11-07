@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Portal - Incident Dispatch</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <div class="logo-group">
+      <h1>🛠️ Campus Transport - Staff Portal</h1>
+      <p>Incident Management & Rider Notification Dispatch</p>
+    </div>
+    <nav class="nav-links">
+      <a href="/" class="nav-link">&larr; Rider View</a>
+      <a href="/staff" class="nav-link active">Staff Portal</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Staff Authentication Key Card -->
+    <section class="card">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="staff-key-input">🔑 Staff Secret Key (X-Staff-Key):</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="password" id="staff-key-input" placeholder="Enter staff key (default: dev-key)" style="flex: 1;">
+          <button id="save-key-btn" class="btn btn-secondary btn-sm">Set Key</button>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+          Header authentication stand-in for campus single sign-on (SSO).
+        </p>
+      </div>
+    </section>
+
+    <!-- Operational Metrics Summary -->
+    <section class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-num" id="summary-active-incidents">0</div>
+        <div class="summary-label">Active Disruption Incidents</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" id="summary-notifications">0</div>
+        <div class="summary-label">Notifications Sent</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" id="summary-calls-avoided" style="color: var(--on-time-text);">0</div>
+        <div class="summary-label">Estimated Calls to Staff Avoided</div>
+      </div>
+    </section>
+
+    <!-- Incident Dispatch Console -->
+    <section class="card">
+      <div class="card-title">
+        <span>⚡ Quick Incident Logger</span>
+      </div>
+
+      <div class="form-group">
+        <label for="trip-select">Select Target Trip:</label>
+        <select id="trip-select">
+          <option value="">Loading upcoming trips...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="incident-msg-input">Disruption Reason / Message (Optional):</label>
+        <input type="text" id="incident-msg-input" placeholder="e.g. Heavy congestion near North Gate (leave empty for auto-message)">
+      </div>
+
+      <div class="form-group">
+        <label for="staff-name-input">Dispatcher / Staff Name:</label>
+        <input type="text" id="staff-name-input" value="Campus Dispatcher" placeholder="Staff Name">
+      </div>
+
+      <div style="margin-top: 1rem;">
+        <label style="margin-bottom: 0.5rem;">Log Disruption &amp; Notify Subscribers:</label>
+        <div class="quick-actions">
+          <button id="btn-delay-10" class="btn btn-warning">⏱️ Delay 10 min</button>
+          <button id="btn-delay-20" class="btn btn-warning">⏱️ Delay 20 min</button>
+          <button id="btn-breakdown" class="btn btn-danger">🚨 Breakdown</button>
+          <button id="btn-cancel" class="btn btn-secondary">🛑 Cancel Trip</button>
+          <button id="btn-resolve" class="btn btn-success">✅ Resolve Issue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trips Overview Table -->
+    <section class="card">
+      <div class="card-title">
+        <span>Campus Transit Schedule &amp; Live Status</span>
+        <button id="refresh-trips-btn" class="btn btn-secondary btn-sm">🔄 Refresh Table</button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Trip #</th>
+              <th>Route</th>
+              <th>Departure</th>
+              <th>Status</th>
+              <th>Active Disruption</th>
+              <th>Quick Actions</th>
+            </tr>
+          </thead>
+          <tbody id="trips-table-body">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading trips...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    let staffKey = localStorage.getItem("campus_staff_key") || "dev-key";
+
+    const staffKeyInput = document.getElementById("staff-key-input");
+    const saveKeyBtn = document.getElementById("save-key-btn");
+    const summaryActiveIncidents = document.getElementById("summary-active-incidents");
+    const summaryNotifications = document.getElementById("summary-notifications");
+    const summaryCallsAvoided = document.getElementById("summary-calls-avoided");
+    const tripSelect = document.getElementById("trip-select");
+    const incidentMsgInput = document.getElementById("incident-msg-input");
+    const staffNameInput = document.getElementById("staff-name-input");
+    const tripsTableBody = document.getElementById("trips-table-body");
+    const refreshTripsBtn = document.getElementById("refresh-trips-btn");
+    const toast = document.getElementById("toast");
+
+    // Action buttons
+    const btnDelay10 = document.getElementById("btn-delay-10");
+    const btnDelay20 = document.getElementById("btn-delay-20");
+    const btnBreakdown = document.getElementById("btn-breakdown");
+    const btnCancel = document.getElementById("btn-cancel");
+    const btnResolve = document.getElementById("btn-resolve");
+
+    staffKeyInput.value = staffKey;
+
+    saveKeyBtn.addEventListener("click", () => {
+      const val = staffKeyInput.value.trim();
+      if (!val) {
+        showToast("Please enter a valid staff key", true);
+        return;
+      }
+      staffKey = val;
+      localStorage.setItem("campus_staff_key", staffKey);
+      showToast("Staff key updated");
+      loadDashboard();
+    });
+
+    function showToast(msg, isError = false) {
+      toast.textContent = msg;
+      toast.style.background = isError ? "#dc2626" : "#0f172a";
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 3500);
+    }
+
+    function formatTime(isoStr) {
+      if (!isoStr) return "--:--";
+      const dt = new Date(isoStr);
+      return dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+
+    async function loadDashboard() {
+      try {
+        const headers = { "X-Staff-Key": staffKey };
+
+        // 1. Fetch summary metrics
+        const sumRes = await fetch("/api/staff/summary", { headers });
+        if (sumRes.status === 401) {
+          showToast("Unauthorized: Invalid X-Staff-Key", true);
+          return;
+        }
+        if (sumRes.ok) {
+          const summary = await sumRes.json();
+          summaryActiveIncidents.textContent = summary.active_incidents;
+          summaryNotifications.textContent = summary.total_notifications_sent;
+          summaryCallsAvoided.textContent = summary.estimated_calls_avoided;
+        }
+
+        // 2. Fetch trips
+        const tripsRes = await fetch("/api/staff/trips", { headers });
+        if (!tripsRes.ok) throw new Error("Failed to load trips");
+        const trips = await tripsRes.json();
+
+        // Populate dropdown
+        const selectedVal = tripSelect.value;
+        tripSelect.innerHTML = '<option value="">-- Choose a Trip --</option>';
+        trips.forEach(t => {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = `Trip #${t.id} - ${t.route_name} at ${formatTime(t.scheduled_departure)} [${t.status}]`;
+          if (String(t.id) === String(selectedVal)) {
+            opt.selected = true;
+          }
+          tripSelect.appendChild(opt);
+        });
+
+        if (!tripSelect.value && trips.length > 0) {
+          tripSelect.value = trips[0].id;
+        }
+
+        // Populate table
+        tripsTableBody.innerHTML = trips.map(t => {
+          const activeMsg = t.active_incident ? t.active_incident.message : '<span style="color: var(--text-muted);">&mdash;</span>';
+          const resolveBtn = (t.status !== "SCHEDULED" && t.status !== "COMPLETED")
+            ? `<button class="btn btn-success btn-sm" onclick="quickResolve(${t.id})">Resolve</button>`
+            : '';
+
+          return `
+            <tr>
+              <td><strong>#${t.id}</strong></td>
+              <td>${t.route_name}</td>
+              <td>${formatTime(t.scheduled_departure)}</td>
+              <td><span class="badge badge-${t.status}">${t.status.replace('_', ' ')}</span></td>
+              <td style="max-width: 300px; font-size: 0.82rem;">${activeMsg}</td>
+              <td>
+                <div style="display: flex; gap: 0.35rem;">
+                  <button class="btn btn-secondary btn-sm" onclick="selectTrip(${t.id})">Select</button>
+                  ${resolveBtn}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    window.selectTrip = function(tripId) {
+      tripSelect.value = tripId;
+      tripSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(`Selected Trip #${tripId}`);
+    };
+
+    window.quickResolve = async function(tripId) {
+      await sendIncidentReport({
+        trip_id: tripId,
+        type: "RESOLVED",
+        delay_minutes: null,
+        message: "Disruption resolved. Vehicle is back on schedule.",
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    };
+
+    async function sendIncidentReport(payload) {
+      try {
+        let endpoint = "/api/staff/incidents";
+        let body = JSON.stringify(payload);
+
+        if (payload.type === "RESOLVED") {
+          endpoint = `/api/staff/incidents/${payload.trip_id}/resolve`;
+          body = JSON.stringify({
+            message: payload.message,
+            created_by: payload.created_by
+          });
+        }
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Staff-Key": staffKey
+          },
+          body: body
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Request failed");
+        }
+
+        showToast(`Disruption logged! Affected riders notified.`);
+        incidentMsgInput.value = "";
+        loadDashboard();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    function getSelectedTripId() {
+      const val = parseInt(tripSelect.value);
+      if (!val) {
+        showToast("Please choose a target trip first", true);
+        tripSelect.focus();
+        return null;
+      }
+      return val;
+    }
+
+    // Action button listeners
+    btnDelay10.addEventListener("click", () => {
+      const tripId = getSelectedTripId();
+      if (!tripId) return;
+      const customMsg = incidentMsgInput.value.trim() || "Traffic congestion on campus corridor";
+      sendIncidentReport({
+        trip_id: tripId,
+        type: "DELAY",
+        delay_minutes: 10,
+        message: customMsg,
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    });
+
+    btnDelay20.addEventListener("click", () => {
+      const tripId = getSelectedTripId();
+      if (!tripId) return;
+      const customMsg = incidentMsgInput.value.trim() || "Heavy congestion and road work delays";
+      sendIncidentReport({
+        trip_id: tripId,
+        type: "DELAY",
+        delay_minutes: 20,
+        message: customMsg,
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    });
+
+    btnBreakdown.addEventListener("click", () => {
+      const tripId = getSelectedTripId();
+      if (!tripId) return;
+      const customMsg = incidentMsgInput.value.trim() || "Mechanical issue. Maintenance dispatched.";
+      sendIncidentReport({
+        trip_id: tripId,
+        type: "BREAKDOWN",
+        delay_minutes: null,
+        message: customMsg,
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    });
+
+    btnCancel.addEventListener("click", () => {
+      const tripId = getSelectedTripId();
+      if (!tripId) return;
+      const customMsg = incidentMsgInput.value.trim() || "Trip cancelled due to operational disruption.";
+      sendIncidentReport({
+        trip_id: tripId,
+        type: "CANCELLATION",
+        delay_minutes: null,
+        message: customMsg,
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    });
+
+    btnResolve.addEventListener("click", () => {
+      const tripId = getSelectedTripId();
+      if (!tripId) return;
+      const customMsg = incidentMsgInput.value.trim() || "Issue resolved, service resumed back on schedule.";
+      sendIncidentReport({
+        trip_id: tripId,
+        type: "RESOLVED",
+        delay_minutes: null,
+        message: customMsg,
+        created_by: staffNameInput.value.trim() || "dispatcher"
+      });
+    });
+
+    refreshTripsBtn.addEventListener("click", loadDashboard);
+
+    // Initial load & 15-second polling
+    loadDashboard();
+    setInterval(loadDashboard, 15000);
+  </script>
+</body>
+</html>

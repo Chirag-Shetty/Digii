@@ -21,34 +21,60 @@ During transit disruptions—traffic delays, vehicle breakdowns, or route cancel
 
 ## 2. How It Works
 
-### Architecture & Incident Lifecycle
+### Architecture & Incident Pipeline
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Staff as Campus Dispatcher
-    participant API as FastAPI Backend
-    participant IncSvc as Incident Service
-    participant ETASvc as ETA Service
-    participant NotifSvc as Notification Service
-    participant DB as SQLite Database
-    actor Rider as Subscribed Rider
+```text
++-----------------------------------------------------------------------------------------+
+|                                    INCIDENT PIPELINE                                    |
++-----------------------------------------------------------------------------------------+
 
-    Staff->>API: POST /api/staff/incidents (DELAY 20 min, Reason: Traffic)
-    API->>IncSvc: report_incident(trip_id, type, delay_minutes, message)
-    IncSvc->>DB: Deactivate previous active incident
-    IncSvc->>DB: Save new incident & set trip status = DELAYED
-    IncSvc->>NotifSvc: notify_affected(incident)
-    loop For each subscribed rider on route
-        NotifSvc->>ETASvc: stop_status(trip, route_stop)
-        ETASvc-->>NotifSvc: Recomputed ETA & status
-        NotifSvc->>DB: Insert Notification (stop-specific ETA + reason)
-    end
-    Staff-->>API: 201 Created
-    Rider->>API: GET /api/stops/{stop_id}/arrivals (poll every 15s)
-    API-->>Rider: Updated ETA (+20 min) & Alert Message
-    Rider->>API: GET /api/inbox/{user_ref}
-    API-->>Rider: "Route 1 at Science Hall: delayed 20 min, new ETA 10:35"
+  [ Dispatcher / Staff ]
+            |
+            | 1. Log Incident once (e.g. DELAY 20 min, Reason: "Highway congestion")
+            v
+  +---------------------------------------------------------------------------------------+
+  |  FastAPI Backend (/api/staff/incidents)                                               |
+  |                                                                                       |
+  |    1. Incident Service                                                                |
+  |       - Deactivates previous active incident for trip (strict single-active rule)     |
+  |       - Persists new Incident record in SQLite database                               |
+  |       - Transitions Trip status -> DELAYED / BROKEN_DOWN / CANCELLED                  |
+  |                                                                                       |
+  |    2. Notification Service                                                            |
+  |       - Queries active subscriptions for the trip's route                             |
+  |       - Invokes ETA Service to compute stop-specific arrival times                    |
+  |       - Dispatches contextual alerts ("Route 1 at Library: delayed 20m, ETA 10:35")   |
+  |       - Persists Notification records (isolated try/except per rider)                 |
+  +---------------------------------------------------------------------------------------+
+            |                                           |
+            | 2. Recomputed Arrival Board               | 3. Targeted Alert
+            v                                           v
+  [ Rider: Live Arrival Board (/) ]           [ Rider: Inbox (/api/inbox/{user}) ]
+  - Status Badge: DELAYED                     - "Route 1 at Library: delayed 20 min"
+  - Sched: 10:15 | New ETA: 10:35             - "Reason: Highway congestion"
+  - Updated X min ago                         - Stop-specific contextual update
+  - Shows STALE badge if > 10m old
+```
+
+### Incident State Machine
+
+```text
+[ Regular Schedule: SCHEDULED / ON_TIME ]
+                 |
+                 | Staff reports disruption
+                 v
+   +---------------------------------------------------------+
+   |               ACTIVE DISRUPTION STATE                   |
+   |  • DELAY:        estimated_time = scheduled + delay     |
+   |  • BREAKDOWN:    estimated_time = None (message shown)  |
+   |  • CANCELLATION: estimated_time = None (message shown)  |
+   +---------------------------------------------------------+
+                 |
+                 |-- (If created > 10m ago) --> Flagged as is_stale: true
+                 |
+                 | Staff clicks "Resolve"
+                 v
+[ SERVICE RESTORED: SCHEDULED / ON_TIME ] (Dispatches "back on schedule" alert)
 ```
 
 ### State Transitions & Staleness Detection

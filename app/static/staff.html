@@ -9,12 +9,20 @@
 <body>
   <header>
     <div class="logo-group">
-      <h1>🛠️ Campus Transport - Staff Portal</h1>
-      <p>Incident Management & Rider Notification Dispatch</p>
+      <div class="logo-icon">🛠️</div>
+      <div>
+        <h1>
+          Staff Console
+          <span class="live-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3);">
+            Dispatch View
+          </span>
+        </h1>
+        <p>Campus Transport Experience &bull; Incident &amp; Disruption Management</p>
+      </div>
     </div>
     <nav class="nav-links">
-      <a href="/" class="nav-link">&larr; Rider View</a>
-      <a href="/staff" class="nav-link active">Staff Portal</a>
+      <a href="/" class="nav-link">&larr; Rider Board</a>
+      <a href="/staff" class="nav-link active">Staff Console</a>
     </nav>
   </header>
 
@@ -22,37 +30,41 @@
     <!-- Staff Authentication Key Card -->
     <section class="card">
       <div class="form-group" style="margin-bottom: 0;">
-        <label for="staff-key-input">🔑 Staff Secret Key (X-Staff-Key):</label>
+        <label for="staff-key-input">🔑 Staff Secret Key (Header: X-Staff-Key):</label>
         <div style="display: flex; gap: 0.5rem;">
           <input type="password" id="staff-key-input" placeholder="Enter staff key (default: dev-key)" style="flex: 1;">
-          <button id="save-key-btn" class="btn btn-secondary btn-sm">Set Key</button>
+          <button id="save-key-btn" class="btn btn-secondary btn-sm">Save Key</button>
         </div>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
-          Header authentication stand-in for campus single sign-on (SSO).
+        <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">
+          Header token stand-in for campus single sign-on (SSO).
         </p>
       </div>
     </section>
 
     <!-- Operational Metrics Summary -->
     <section class="summary-grid">
-      <div class="summary-card">
+      <div class="summary-card accent-amber">
         <div class="summary-num" id="summary-active-incidents">0</div>
-        <div class="summary-label">Active Disruption Incidents</div>
+        <div class="summary-label">Active Incidents</div>
+        <div class="summary-subtext">Currently affecting trips</div>
       </div>
-      <div class="summary-card">
+      <div class="summary-card accent-blue">
         <div class="summary-num" id="summary-notifications">0</div>
         <div class="summary-label">Notifications Sent</div>
+        <div class="summary-subtext">Delivered to subscribed riders</div>
       </div>
-      <div class="summary-card">
-        <div class="summary-num" id="summary-calls-avoided" style="color: var(--on-time-text);">0</div>
-        <div class="summary-label">Estimated Calls to Staff Avoided</div>
+      <div class="summary-card accent-green">
+        <div class="summary-num" id="summary-calls-avoided" style="color: #047857;">0</div>
+        <div class="summary-label">Estimated Calls Avoided</div>
+        <div class="summary-subtext">Proactive updates to riders</div>
       </div>
     </section>
 
     <!-- Incident Dispatch Console -->
     <section class="card">
-      <div class="card-title">
-        <span>⚡ Quick Incident Logger</span>
+      <div class="card-header-clean">
+        <span class="card-title">⚡ Quick Incident Logger</span>
+        <span class="section-label">One-Click Dispatch</span>
       </div>
 
       <div class="form-group">
@@ -63,35 +75,32 @@
       </div>
 
       <div class="form-group">
-        <label for="incident-msg-input">Disruption Reason / Message (Optional):</label>
-        <input type="text" id="incident-msg-input" placeholder="e.g. Heavy congestion near North Gate (leave empty for auto-message)">
+        <label for="incident-msg-input">Disruption Reason / Context (Optional):</label>
+        <input type="text" id="incident-msg-input" placeholder="e.g. Heavy traffic congestion near stadium (leave empty for auto-message)">
       </div>
 
       <div class="form-group">
-        <label for="staff-name-input">Dispatcher / Staff Name:</label>
+        <label for="staff-name-input">Dispatcher / Staff Identifier:</label>
         <input type="text" id="staff-name-input" value="Campus Dispatcher" placeholder="Staff Name">
       </div>
 
-      <div style="margin-top: 1rem;">
-        <label style="margin-bottom: 0.5rem;">Log Disruption &amp; Notify Subscribers:</label>
-        <div class="quick-actions">
-          <button id="btn-delay-10" class="btn btn-warning">⏱️ Delay 10 min</button>
-          <button id="btn-delay-20" class="btn btn-warning">⏱️ Delay 20 min</button>
-          <button id="btn-breakdown" class="btn btn-danger">🚨 Breakdown</button>
-          <button id="btn-cancel" class="btn btn-secondary">🛑 Cancel Trip</button>
-          <button id="btn-resolve" class="btn btn-success">✅ Resolve Issue</button>
-        </div>
+      <div class="quick-actions-bar">
+        <button id="btn-delay-10" class="btn btn-action-delay">⏱️ +10 min Delay</button>
+        <button id="btn-delay-20" class="btn btn-action-delay">⏱️ +20 min Delay</button>
+        <button id="btn-breakdown" class="btn btn-action-breakdown">🚨 Breakdown</button>
+        <button id="btn-cancel" class="btn btn-action-cancel">🛑 Cancel Trip</button>
+        <button id="btn-resolve" class="btn btn-action-resolve">✅ Resolve Issue</button>
       </div>
     </section>
 
     <!-- Trips Overview Table -->
     <section class="card">
-      <div class="card-title">
-        <span>Campus Transit Schedule &amp; Live Status</span>
+      <div class="card-header-clean">
+        <span class="card-title">Campus Trips Schedule &amp; Status</span>
         <button id="refresh-trips-btn" class="btn btn-secondary btn-sm">🔄 Refresh Table</button>
       </div>
 
-      <div class="table-container">
+      <div class="table-responsive">
         <table>
           <thead>
             <tr>
@@ -100,12 +109,12 @@
               <th>Departure</th>
               <th>Status</th>
               <th>Active Disruption</th>
-              <th>Quick Actions</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="trips-table-body">
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading trips...</td>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading trips...</td>
             </tr>
           </tbody>
         </table>
@@ -207,16 +216,16 @@
         tripsTableBody.innerHTML = trips.map(t => {
           const activeMsg = t.active_incident ? t.active_incident.message : '<span style="color: var(--text-muted);">&mdash;</span>';
           const resolveBtn = (t.status !== "SCHEDULED" && t.status !== "COMPLETED")
-            ? `<button class="btn btn-success btn-sm" onclick="quickResolve(${t.id})">Resolve</button>`
+            ? `<button class="btn btn-action-resolve btn-sm" onclick="quickResolve(${t.id})">Resolve</button>`
             : '';
 
           return `
             <tr>
               <td><strong>#${t.id}</strong></td>
-              <td>${t.route_name}</td>
-              <td>${formatTime(t.scheduled_departure)}</td>
+              <td><strong>${t.route_name}</strong></td>
+              <td style="font-variant-numeric: tabular-nums;">${formatTime(t.scheduled_departure)}</td>
               <td><span class="badge badge-${t.status}">${t.status.replace('_', ' ')}</span></td>
-              <td style="max-width: 300px; font-size: 0.82rem;">${activeMsg}</td>
+              <td style="max-width: 280px; font-size: 0.82rem;">${activeMsg}</td>
               <td>
                 <div style="display: flex; gap: 0.35rem;">
                   <button class="btn btn-secondary btn-sm" onclick="selectTrip(${t.id})">Select</button>
@@ -367,4 +376,3 @@
   </script>
 </body>
 </html>
-

@@ -9,12 +9,18 @@
 <body>
   <header>
     <div class="logo-group">
-      <h1>🚌 Where's My Bus?</h1>
-      <p>Campus Transport Experience &bull; Real-Time Transit & Disruption Alerts</p>
+      <div class="logo-icon">🚌</div>
+      <div>
+        <h1>
+          Where's My Bus?
+          <span class="live-badge"><span class="live-dot"></span> Live Feed</span>
+        </h1>
+        <p>Campus Transport Experience &bull; Real-Time Transit &amp; Disruption Alerts</p>
+      </div>
     </div>
     <nav class="nav-links">
-      <a href="/" class="nav-link active">Rider View</a>
-      <a href="/staff" class="nav-link">Staff Portal &rarr;</a>
+      <a href="/" class="nav-link active">Rider Board</a>
+      <a href="/staff" class="nav-link">Staff Console &rarr;</a>
     </nav>
   </header>
 
@@ -25,18 +31,19 @@
         <label for="user-ref-input">👤 Rider Identifier (saved locally):</label>
         <div style="display: flex; gap: 0.5rem;">
           <input type="text" id="user-ref-input" placeholder="e.g. user_alice or student_id" style="flex: 1;">
-          <button id="save-user-btn" class="btn btn-primary btn-sm">Set ID</button>
+          <button id="save-user-btn" class="btn btn-primary btn-sm">Save ID</button>
         </div>
       </div>
     </section>
 
     <!-- Stop Selection Card -->
     <section class="card">
-      <div class="card-title">
-        <span>📍 Select Your Campus Stop</span>
-        <span id="poll-indicator" style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">Auto-refreshing (15s)</span>
+      <div class="card-header-clean">
+        <span class="section-label">Campus Board</span>
+        <span id="poll-indicator" style="font-size: 0.72rem; color: var(--text-muted);">Auto-updating every 15s</span>
       </div>
-      <div class="form-group" style="margin-bottom: 0.5rem;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="stop-select">📍 Select Campus Stop:</label>
         <select id="stop-select">
           <option value="">Loading campus stops...</option>
         </select>
@@ -45,23 +52,23 @@
 
     <!-- Upcoming Buses List -->
     <section class="card">
-      <div class="card-title">
-        <span>Upcoming Buses</span>
-        <button id="manual-refresh-btn" class="btn btn-secondary btn-sm">🔄 Refresh Now</button>
+      <div class="card-header-clean">
+        <span class="card-title">Upcoming Arrivals</span>
+        <button id="manual-refresh-btn" class="btn btn-secondary btn-sm">🔄 Refresh</button>
       </div>
       <div id="bus-list">
-        <p style="color: var(--text-muted);">Select a stop above to view incoming buses.</p>
+        <p style="color: var(--text-muted); padding: 1rem 0;">Select a stop above to view incoming buses.</p>
       </div>
     </section>
 
     <!-- Rider Notification Inbox -->
     <section class="card">
-      <div class="card-title">
-        <span>📬 Alert Inbox for <span id="inbox-user-display">you</span></span>
-        <button id="clear-inbox-view-btn" class="btn btn-secondary btn-sm">Refresh Inbox</button>
+      <div class="card-header-clean">
+        <span class="card-title">📬 Alert Inbox (<span id="inbox-user-display">you</span>)</span>
+        <button id="clear-inbox-view-btn" class="btn btn-secondary btn-sm">Check Alerts</button>
       </div>
       <div id="inbox-container">
-        <p style="color: var(--text-muted); font-size: 0.9rem;">No alerts received yet.</p>
+        <p style="color: var(--text-muted); font-size: 0.88rem; padding: 0.5rem 0;">No alerts received yet.</p>
       </div>
     </section>
   </main>
@@ -119,8 +126,8 @@
       const diffMs = Date.now() - updatedDate.getTime();
       const diffMin = Math.max(0, Math.floor(diffMs / 60000));
       if (diffMin < 1) return "Updated just now";
-      if (diffMin === 1) return "Updated 1 min ago";
-      return `Updated ${diffMin} min ago`;
+      if (diffMin === 1) return "Updated 1m ago";
+      return `Updated ${diffMin}m ago`;
     }
 
     // Load Stops
@@ -163,7 +170,7 @@
     // Load Arrivals for Selected Stop
     async function loadArrivals() {
       if (!currentStopId) {
-        busList.innerHTML = '<p style="color: var(--text-muted);">Select a stop to view arrivals.</p>';
+        busList.innerHTML = '<p style="color: var(--text-muted); padding: 1rem 0;">Select a stop to view arrivals.</p>';
         return;
       }
 
@@ -179,28 +186,38 @@
 
         busList.innerHTML = arrivals.map(arr => {
           const isDelayed = arr.status === "DELAYED";
-          const delayText = arr.delay_minutes > 0 ? ` (+${arr.delay_minutes} min delay)` : '';
+          const isDanger = arr.status === "BROKEN_DOWN" || arr.status === "CANCELLED";
+          const delayChip = arr.delay_minutes > 0 ? `<span class="delay-chip">+${arr.delay_minutes}m delay</span>` : '';
           const schedTime = formatTime(arr.scheduled_time);
-          const estTime = arr.estimated_time ? formatTime(arr.estimated_time) : (arr.status === "CANCELLED" || arr.status === "BROKEN_DOWN" ? "None" : schedTime);
+          const estTime = arr.estimated_time ? formatTime(arr.estimated_time) : (isDanger ? "Unavailable" : schedTime);
+
+          const isRed = arr.route_name.toLowerCase().includes("red");
+          const isBlue = arr.route_name.toLowerCase().includes("blue");
+          const cardClass = isRed ? "card-red" : (isBlue ? "card-blue" : "");
+          const pillClass = isRed ? "route-red" : (isBlue ? "route-blue" : "route-blue");
+          const routeBadge = isRed ? "RED" : (isBlue ? "BLUE" : "BUS");
 
           const staleWarningHtml = arr.is_stale ? `
-            <div class="stale-warning">
-              ⚠️ Warning: Status update is stale (&gt;10 min old without updates). Information may not reflect recent road conditions.
+            <div class="stale-banner">
+              ⚠️ Warning: Last update was &gt;10 min ago. Information may not reflect sudden road conditions.
             </div>
           ` : '';
 
           const msgHtml = arr.message ? `
-            <div class="bus-message">
-              <strong>Alert:</strong> ${arr.message}
+            <div class="bus-alert-box ${isDanger ? 'danger-alert' : ''}">
+              <span>📢 <strong>Alert:</strong> ${arr.message}</span>
             </div>
           ` : '';
 
           return `
-            <div class="bus-card">
+            <div class="bus-card ${cardClass}">
               <div class="bus-header">
                 <div>
-                  <div class="bus-route">${arr.route_name}</div>
-                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                  <div class="bus-route-title">
+                    <span class="route-pill ${pillClass}">${routeBadge}</span>
+                    <span>${arr.route_name}</span>
+                  </div>
+                  <div class="bus-trip-sub">
                     Trip #${arr.trip_id} &bull; ${formatUpdatedAgo(arr.last_updated)}
                   </div>
                 </div>
@@ -212,28 +229,33 @@
               ${msgHtml}
               ${staleWarningHtml}
 
-              <div class="bus-times">
-                <div class="bus-time-col">
-                  <div class="label">Scheduled</div>
-                  <div class="val">${schedTime}</div>
+              <div class="bus-times-row">
+                <div class="time-block">
+                  <span class="time-label">Scheduled</span>
+                  <span class="time-value" style="color: var(--text-muted); font-size: 1.2rem;">${schedTime}</span>
                 </div>
-                <div class="bus-time-col">
-                  <div class="label">Estimated Arrival (ETA)</div>
-                  <div class="val ${isDelayed ? 'delayed' : ''}">${estTime} ${delayText}</div>
+                <div class="time-block">
+                  <span class="time-label">Estimated Arrival (ETA)</span>
+                  <div style="display: flex; align-items: baseline;">
+                    <span class="time-value ${isDelayed ? 'delayed-val' : ''}">${estTime}</span>
+                    ${delayChip}
+                  </div>
                 </div>
               </div>
 
-              <div class="bus-footer">
-                <div>Stop: <strong>${arr.stop_name}</strong></div>
-                <button class="btn btn-secondary btn-sm" onclick="subscribeToRoute(${arr.route_id}, '${arr.route_name}')">
-                  🔔 Subscribe to ${arr.route_name}
+              <div class="bus-card-footer">
+                <div class="stop-indicator">
+                  <span>📍</span> Stop: <strong>${arr.stop_name}</strong>
+                </div>
+                <button class="btn-subscribe" onclick="subscribeToRoute(${arr.route_id}, '${arr.route_name}')">
+                  🔔 Subscribe to alerts
                 </button>
               </div>
             </div>
           `;
         }).join('');
       } catch (err) {
-        busList.innerHTML = '<p style="color: var(--stale-text);">Failed to refresh arrivals.</p>';
+        busList.innerHTML = '<p style="color: #ef4444; padding: 1rem 0;">Failed to refresh arrivals.</p>';
       }
     }
 
@@ -281,17 +303,17 @@
         const notifs = await res.json();
 
         if (notifs.length === 0) {
-          inboxContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No alert notifications for ' + currentUserRef + ' yet.</p>';
+          inboxContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.88rem; padding: 0.5rem 0;">No alert notifications for ' + currentUserRef + ' yet.</p>';
           return;
         }
 
         inboxContainer.innerHTML = notifs.map(n => `
-          <div style="border-bottom: 1px solid var(--border); padding: 0.75rem 0;">
-            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+          <div class="inbox-item">
+            <div class="inbox-meta">
               <span>Trip #${n.trip_id}</span>
               <span>${new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-            <div style="font-size: 0.9rem; font-weight: 500; margin-top: 0.25rem;">${n.message}</div>
+            <div class="inbox-message">${n.message}</div>
           </div>
         `).join('');
       } catch (err) {

@@ -92,3 +92,4 @@ def history(db: Session, trip_id: int) -> Sequence[Incident]:
         .order_by(Incident.created_at.desc(), Incident.id.desc())
         .all()
     )
+

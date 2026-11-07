@@ -117,27 +117,6 @@ class ArrivalResponse(BaseModel):
     is_stale: bool = False
 
 
-class TripDetailResponse(TripResponse):
-    route_name: str
-    stops: List[StopETA] = []
-    active_incident: Optional[IncidentResponse] = None
-
-
-class ArrivalResponse(BaseModel):
-    trip_id: int
-    route_id: int
-    route_name: str
-    stop_id: int
-    stop_name: str
-    scheduled_time: datetime
-    estimated_time: Optional[datetime] = None
-    delay_minutes: int = 0
-    status: str
-    message: Optional[str] = None
-    last_updated: Optional[datetime] = None
-    is_stale: bool = False
-
-
 class SubscriptionBase(BaseModel):
     user_ref: str
     route_id: int

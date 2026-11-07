@@ -1,6 +1,6 @@
 # Campus Transport Experience — "Where's My Bus?"
 
-A real-time campus transit disruption management and rider notification platform built with Python 3.11+, FastAPI, SQLAlchemy 2.x, SQLite, Pydantic v2, and a vanilla HTML/JS frontend with zero build steps.
+A near-real-time campus transit disruption management and rider notification platform built with Python 3.11+, FastAPI, SQLAlchemy 2.x, SQLite, Pydantic v2, and a vanilla HTML/JS frontend with zero build steps.
 
 ---
 
@@ -14,8 +14,8 @@ During transit disruptions—traffic delays, vehicle breakdowns, or route cancel
 ### The Solution
 - **Staff log an incident once** from a dispatch console (specifying delay minutes, breakdown, or cancellation).
 - **The system recomputes ETAs and trip status** across all downstream stops automatically.
-- **Subscribed riders are immediately notified** with stop-specific contextual messages and updated arrival times.
-- **Result:** Transparency, trust, proactive communication, and dramatically fewer calls to dispatch staff.
+- **Subscribed riders are notified** with stop-specific contextual messages and updated arrival times.
+- **Result:** Transparency, trust, proactive communication, and fewer repeated inquiries to staff.
 
 ---
 
@@ -96,8 +96,8 @@ During transit disruptions—traffic delays, vehicle breakdowns, or route cancel
 ### 1. Create and Activate Virtual Environment
 ```bash
 # Clone repository
-git clone <repo_url>
-cd digii
+git clone https://github.com/Chirag-Shetty/Digii.git
+cd Digii
 
 # Create virtualenv
 python -m venv .venv
@@ -191,12 +191,14 @@ curl -X POST http://localhost:8000/api/staff/incidents/1/resolve \
 
 ### 6. View Operational Metrics & Incident Audit Trail
 ```bash
-# Summary numbers (active disruptions, total alerts, calls avoided)
+# Summary numbers (active disruptions, total alerts, calls avoided proxy)
 curl -X GET http://localhost:8000/api/staff/summary -H "X-Staff-Key: dev-key"
 
 # Chronological audit history for a trip
 curl -X GET http://localhost:8000/api/staff/trips/1/history -H "X-Staff-Key: dev-key"
 ```
+
+> **Note on Metric**: *"Estimated Calls Avoided"* is a directional proxy metric computed 1:1 from total notifications delivered to subscribed riders, not an actual telephony measurement.
 
 ---
 
@@ -224,7 +226,7 @@ curl -X GET http://localhost:8000/api/staff/trips/1/history -H "X-Staff-Key: dev
 ## 6. Design Decisions and Trade-offs
 
 1. **Domain Services vs Thin Handlers**: All business logic (ETA calculation, incident superseding, staleness evaluation, notification formatting) lives strictly inside `app/services/`. API endpoints only perform validation, dependency injection, and HTTP formatting.
-2. **Injectable Clock (`now: datetime | None = None`)**: Every service accepting or calculating time supports an explicit `now` parameter defaulting to UTC. This enables 100% deterministic, flake-free unit and temporal testing.
+2. **Injectable Clock (`now: datetime | None = None`)**: Every service accepting or calculating time supports an explicit `now` parameter defaulting to UTC. This enables reproducible and deterministic unit and temporal testing without mocking system time.
 3. **Vanilla JS & Zero-Build Frontend**: Avoided React/Vue/Node build tooling. The static frontend is served directly by FastAPI, loading instantly in any browser without npm packages or bundling steps.
 4. **Resilient Notification Delivery**: Notification generation is wrapped per subscriber in a `try/except` block with individual transaction handling. If an issue occurs notifying one rider, it does not abort notifications for other subscribers.
 5. **Single Active Incident Enforcement**: Only one incident can be active per trip at any time. When a new incident is created, all prior active incidents are marked `is_active = False` while maintaining the immutable audit trail.
@@ -232,8 +234,9 @@ curl -X GET http://localhost:8000/api/staff/trips/1/history -H "X-Staff-Key: dev
 
 ---
 
-## 7. Assumptions
+## 7. Assumptions & Timezone Model
 
+- **Timezone Model**: All backend storage, scheduling calculations, and API payloads operate in UTC (ISO 8601 strings ending in `Z`). The client frontend (vanilla JS) converts UTC timestamps to the rider's local browser timezone (e.g. IST / UTC+05:30) via `toLocaleTimeString()`. In-app alert messages format departure and arrival offsets relative to the trip's UTC schedule.
 - **Fixed Route Stop Sequences**: Each route has a deterministic sequence of stops with predefined offset minutes from the scheduled trip departure.
 - **Route-Wide Disruptions**: Incidents reported on a trip currently impact all downstream stops along that trip's route.
 - **In-App Notification Inbox**: Polling the inbox via HTTP endpoints is sufficient for campus rider transparency within the prototype scope.
@@ -259,4 +262,3 @@ curl -X GET http://localhost:8000/api/staff/trips/1/history -H "X-Staff-Key: dev
 4. **Multichannel Delivery**: Optional SMS / WhatsApp / Campus App push notification adapters for high-priority alerts.
 5. **Digest Modes & Rate Limiting**: Consolidate frequent delay updates (e.g. 5m $\rightarrow$ 10m $\rightarrow$ 15m) into rate-limited digests to prevent notification fatigue.
 6. **Operational Analytics Dashboard**: Historical charts showing mean time to resolution (MTTR), route disruption hotspots, and metrics on estimated dispatch calls avoided over time.
-

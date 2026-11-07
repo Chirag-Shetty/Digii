@@ -167,9 +167,18 @@
       setTimeout(() => { toast.style.display = "none"; }, 3500);
     }
 
+    function parseUtcDate(isoStr) {
+      if (!isoStr) return null;
+      let s = String(isoStr).trim();
+      if (!s.endsWith("Z") && !s.includes("+") && !s.slice(-6).includes("-")) {
+        s += "Z";
+      }
+      return new Date(s);
+    }
+
     function formatTime(isoStr) {
-      if (!isoStr) return "--:--";
-      const dt = new Date(isoStr);
+      const dt = parseUtcDate(isoStr);
+      if (!dt || isNaN(dt.getTime())) return "--:--";
       return dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
     }
 

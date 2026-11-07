@@ -114,15 +114,25 @@
       setTimeout(() => { toast.style.display = "none"; }, 3500);
     }
 
+    function parseUtcDate(isoStr) {
+      if (!isoStr) return null;
+      let s = String(isoStr).trim();
+      if (!s.endsWith("Z") && !s.includes("+") && !s.slice(-6).includes("-")) {
+        s += "Z";
+      }
+      return new Date(s);
+    }
+
     function formatTime(isoStr) {
-      if (!isoStr) return "--:--";
-      const dt = new Date(isoStr);
+      const dt = parseUtcDate(isoStr);
+      if (!dt || isNaN(dt.getTime())) return "--:--";
       return dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
     }
 
     function formatUpdatedAgo(lastUpdatedIso) {
       if (!lastUpdatedIso) return "On regular schedule";
-      const updatedDate = new Date(lastUpdatedIso);
+      const updatedDate = parseUtcDate(lastUpdatedIso);
+      if (!updatedDate || isNaN(updatedDate.getTime())) return "On regular schedule";
       const diffMs = Date.now() - updatedDate.getTime();
       const diffMin = Math.max(0, Math.floor(diffMs / 60000));
       if (diffMin < 1) return "Updated just now";
@@ -311,7 +321,7 @@
           <div class="inbox-item">
             <div class="inbox-meta">
               <span>Trip #${n.trip_id}</span>
-              <span>${new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>${formatTime(n.created_at)}</span>
             </div>
             <div class="inbox-message">${n.message}</div>
           </div>

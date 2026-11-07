@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -25,16 +26,20 @@ router = APIRouter(
 def get_staff_trips(db: Session = Depends(get_db)):
     """
     Returns upcoming trips with active incident information for staff dispatch view.
+    Ensures scheduled_departure is serialized with UTC timezone.
     """
     trips = db.query(Trip).order_by(Trip.scheduled_departure.asc()).all()
     results = []
     for trip in trips:
         active_inc = next((i for i in trip.incidents if i.is_active), None)
+        departure = trip.scheduled_departure
+        if departure and departure.tzinfo is None:
+            departure = departure.replace(tzinfo=timezone.utc)
         results.append({
             "id": trip.id,
             "route_id": trip.route_id,
             "route_name": trip.route.name if trip.route else f"Route {trip.route_id}",
-            "scheduled_departure": trip.scheduled_departure,
+            "scheduled_departure": departure,
             "status": trip.status,
             "active_incident": active_inc,
         })
